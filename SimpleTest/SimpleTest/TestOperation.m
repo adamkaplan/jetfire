@@ -16,6 +16,7 @@ static NSString *testAgent;
 @interface TestOperation () <JFRWebSocketDelegate>
 @property (nonatomic) BOOL isExecuting;
 @property (nonatomic) BOOL isFinished;
+@property (nonatomic) BOOL nanoSleep;
 @end
 
 @implementation TestOperation
@@ -24,13 +25,23 @@ static NSString *testAgent;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         testAgent = [NSBundle bundleForClass:[self class]].bundleIdentifier;
+        NSAssert(testAgent, @"Unable to find bundle identifier");
     });
 }
 
 - (instancetype)initWithTestCase:(TestCase *)testCase command:(NSString *)command {
     if (self = [super init]) {
         _testCase = testCase;
-        NSString *params = [NSString stringWithFormat:@"?case=%lu&agent=%@&", testCase.number, testAgent];
+        NSMutableDictionary *params = [NSMutableDictionary dictionary];
+        params[@"agent"] = testAgent;
+        if (testCase.number) {
+            params[@"case"] = testCase.number;
+        }
+        
+        if ([command isEqualToString:@"getCaseStatus"]) {
+            _nanoSleep = YES;
+        }
+        
         _socket = [TestWebSocket testSocketForCommand:command parameters:params];
         _socket.delegate = self;
     }
@@ -44,6 +55,9 @@ static NSString *testAgent;
 - (void)main {
     self.isExecuting = YES;
     self.testCase.status = TestCaseStatusRunning;
+    if (self.nanoSleep) {
+        [NSThread sleepForTimeInterval:0.2];
+    }
     [self.socket connect];
 }
 
@@ -58,47 +72,62 @@ static NSString *testAgent;
     [self didChangeValueForKey:@"isExecuting"];
 }
 
+- (void)done {
+    [self.socket disconnect];
+}
+
 - (void)dealloc {
     self.socket.delegate = nil;
+    self.socket = nil;
 }
 
 #pragma mark -
 
 - (void)websocketDidConnect:(JFRWebSocket*)socket {
-    NSLog(@"[connected]");
+    NSLog(@"[client] connected");
 }
 
 - (void)websocketDidDisconnect:(JFRWebSocket *)socket error:(NSError *)error {
-    NSLog(@"[disconnected: %@]", [error localizedDescription]);
+    NSString *reason = error ? [error localizedDescription] : @"Cleanly";
+    NSLog(@"[client] disconnected %@", reason);
     self.socket.lastError = error;
-    //@throw error;
-    [self done];
+    self.socket.delegate = nil;
+    [self setExecuting:NO finished:YES];
 }
 
 - (void)websocket:(JFRWebSocket *)socket didReceiveMessage:(NSString *)string {
     self.socket.receivedText = string;
-    [self.socket writeString:string];
-    [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(done) object:nil];
-    [self performSelector:@selector(done) withObject:nil afterDelay:1.0];
+    NSLog(@"[client] received message [%@]", string);
+    if (self.mimic) {
+        [self.socket writeString:string];
+        [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(done) object:nil];
+        [self performSelector:@selector(done) withObject:nil afterDelay:1.0];
+    } else {
+        [self done];
+    }
 }
 
 - (void)websocket:(JFRWebSocket *)socket didReceiveData:(NSData *)data {
     self.socket.receivedData = data;
-    [self.socket writeData:data];
-    [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(done) object:nil];
-    [self performSelector:@selector(done) withObject:nil afterDelay:1.0];
+    NSLog(@"[client] received data %@", data);
+    if (self.mimic) {
+        [self.socket writeData:data];
+        [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(done) object:nil];
+        [self performSelector:@selector(done) withObject:nil afterDelay:1.0];
+    } else {
+        [self done];
+    }
 }
 
 - (void)websocketDidReceivePing:(JFRWebSocket *)socket {
     self.socket.receivedPing = YES;
-    NSLog(@"* Ping!");
-    [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(done) object:nil];
-    [self performSelector:@selector(done) withObject:nil afterDelay:1.0]; // allow time for queued pong to be sent
+    NSLog(@"[client] ping!");
+    if (self.mimic) {
+        [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(done) object:nil];
+        [self performSelector:@selector(done) withObject:nil afterDelay:1.0]; // allow time for queued pong to be sent
+    } else {
+        [self done];
+    }
 }
-
-- (void)done {
-    [self setExecuting:NO finished:YES];
-}
-
 
 @end

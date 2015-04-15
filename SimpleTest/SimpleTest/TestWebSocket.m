@@ -14,14 +14,21 @@
     return [self testSocketForCommand:command parameters:nil];
 }
 
-+ (instancetype)testSocketForCommand:(NSString *)command parameters:(NSString *)params {
-    NSURL *baseUrl = [[NSURL URLWithString:@"ws://localhost:9001"] URLByAppendingPathComponent:command];
++ (instancetype)testSocketForCommand:(NSString *)command parameters:(NSDictionary *)params {
+    NSURL *const BaseUrl = [NSURL URLWithString:@"ws://localhost:9001"];
     
-    if (params) {
-        baseUrl = [NSURL URLWithString:[[baseUrl absoluteString] stringByAppendingString:params]];
+    NSMutableArray *queryItems = [NSMutableArray array];
+    for (id key in params) {
+        NSURLQueryItem *item = [NSURLQueryItem queryItemWithName:key value:params[key]];
+        [queryItems addObject:item];
     }
+
+    NSURLComponents *components = [[NSURLComponents alloc] initWithURL:BaseUrl resolvingAgainstBaseURL:NO];
+    components.path = [@"/" stringByAppendingString:command];
+    components.queryItems = queryItems;
     
-    TestWebSocket *socket = [[self alloc] initWithURL:baseUrl protocols:@[]];
+    //NSLog(@"%@", components.URL);
+    TestWebSocket *socket = [[self alloc] initWithURL:components.URL protocols:@[]];
     return socket;
 }
 

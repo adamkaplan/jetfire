@@ -13,6 +13,9 @@
 #import "TestCaseTableViewcell.h"
 #import "TestOperation.h"
 
+static const int FirstTest = 49; // use to skip to an interesting test.
+//static const int FirstTest = 1;
+
 @interface ViewController ()
 @property (nonatomic) NSOperationQueue *queue;
 @property (nonatomic) NSMutableArray *testCases;
@@ -39,16 +42,21 @@
     [self.queue addOperation:countOp];
     [self.queue addOperationWithBlock:^{
         NSInteger testCount = [countOp.socket.receivedText integerValue];
-        NSLog(@"Test Count: %lu", testCount);
+        //NSLog(@"Test Count: %lu", testCount);
         
         NSMutableArray *testCases = [[NSMutableArray alloc] init];
-        for (int i = 1; i < testCount+1; i++) {
+        for (int i = FirstTest; i <= testCount; i++) {
             TestCase *testCase = [TestCase new];
-            testCase.number = i;
+            testCase.number = [NSString stringWithFormat:@"%i", i];
             [testCases addObject:testCase];
         }
+        
         self.testCases = [testCases copy];
         [self.tableView performSelectorOnMainThread:@selector(reloadData) withObject:nil waitUntilDone:NO];
+
+//        for (TestCase *testCase in self.testCases) {
+//            [self getAutobahnTestInfo:testCase];
+//        }
         
         for (TestCase *testCase in self.testCases) {
             [self getAutobahnTestInfo:testCase];
@@ -73,7 +81,11 @@
         test.summary = info[@"description"];
         
         dispatch_sync(dispatch_get_main_queue(), ^{
-            self.navigationItem.title = [NSString stringWithFormat:@"%03lu of %03lu", test.number, self.testCases.count];
+            NSInteger testNum = [test.number integerValue];
+            self.navigationItem.title = [NSString stringWithFormat:@"%03lu of %03lu", testNum, self.testCases.count];
+            [self.tableView scrollToRowAtIndexPath:[NSIndexPath indexPathForRow:testNum - FirstTest inSection:0]
+                                  atScrollPosition:UITableViewScrollPositionBottom
+                                          animated:YES];
         });
         NSLog(@"About to run %@ – %@", test.identifier, test.summary);
     }];
@@ -82,6 +94,7 @@
 - (void)runAutobahnTest:(TestCase *)test {
     //NSLog(@"Running test %@ - %@", test.identifier, test.summary);
     TestOperation *op = [[TestOperation alloc] initWithTestCase:test command:@"runCase"];
+    op.mimic = YES;
     [self.queue addOperation:op];
 }
 

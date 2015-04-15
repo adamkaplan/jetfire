@@ -18,6 +18,11 @@
 		FC1A3CDD1ADCCF1700F0BDBD /* TestOperation.m in Sources */ = {isa = PBXBuildFile; fileRef = FC1A3CDC1ADCCF1700F0BDBD /* TestOperation.m */; };
 		FC1A3CE01ADCCF9200F0BDBD /* TestCase.m in Sources */ = {isa = PBXBuildFile; fileRef = FC1A3CDF1ADCCF9200F0BDBD /* TestCase.m */; };
 		FC1A3CE61ADD6C8A00F0BDBD /* TestCaseTableViewcell.m in Sources */ = {isa = PBXBuildFile; fileRef = FC1A3CE51ADD6C8A00F0BDBD /* TestCaseTableViewcell.m */; };
+		FC480AEA1ADF14A00020B703 /* NSData+JFRBinaryInspection.m in Sources */ = {isa = PBXBuildFile; fileRef = FC480AE91ADF14A00020B703 /* NSData+JFRBinaryInspection.m */; };
+		FCA6767F1AE5992B002CE9E5 /* JFRWebSocketReadController.m in Sources */ = {isa = PBXBuildFile; fileRef = FCA6767E1AE5992B002CE9E5 /* JFRWebSocketReadController.m */; };
+		FCA676831AE59E3D002CE9E5 /* JFRWebSocketController.m in Sources */ = {isa = PBXBuildFile; fileRef = FCA676821AE59E3D002CE9E5 /* JFRWebSocketController.m */; };
+		FCA676891AE5B1BC002CE9E5 /* JFRLog.m in Sources */ = {isa = PBXBuildFile; fileRef = FCA676871AE5B1BC002CE9E5 /* JFRLog.m */; };
+		FCA6768C1AE5EB99002CE9E5 /* JFRWebSocketWriteController.m in Sources */ = {isa = PBXBuildFile; fileRef = FCA6768B1AE5EB99002CE9E5 /* JFRWebSocketWriteController.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,6 +46,18 @@
 		FC1A3CDF1ADCCF9200F0BDBD /* TestCase.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TestCase.m; sourceTree = "<group>"; };
 		FC1A3CE41ADD6C8A00F0BDBD /* TestCaseTableViewcell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestCaseTableViewcell.h; sourceTree = "<group>"; };
 		FC1A3CE51ADD6C8A00F0BDBD /* TestCaseTableViewcell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TestCaseTableViewcell.m; sourceTree = "<group>"; };
+		FC480AE81ADF14A00020B703 /* NSData+JFRBinaryInspection.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSData+JFRBinaryInspection.h"; sourceTree = "<group>"; };
+		FC480AE91ADF14A00020B703 /* NSData+JFRBinaryInspection.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSData+JFRBinaryInspection.m"; sourceTree = "<group>"; };
+		FCA6767D1AE5992B002CE9E5 /* JFRWebSocketReadController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = JFRWebSocketReadController.h; path = ../../JFRWebSocketReadController.h; sourceTree = "<group>"; };
+		FCA6767E1AE5992B002CE9E5 /* JFRWebSocketReadController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = JFRWebSocketReadController.m; path = ../../JFRWebSocketReadController.m; sourceTree = "<group>"; };
+		FCA676801AE59B27002CE9E5 /* JFRSocketControllerStatus.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = JFRSocketControllerStatus.h; path = ../../JFRSocketControllerStatus.h; sourceTree = "<group>"; };
+		FCA676811AE59E3D002CE9E5 /* JFRWebSocketController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = JFRWebSocketController.h; path = ../../JFRWebSocketController.h; sourceTree = "<group>"; };
+		FCA676821AE59E3D002CE9E5 /* JFRWebSocketController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = JFRWebSocketController.m; path = ../../JFRWebSocketController.m; sourceTree = "<group>"; };
+		FCA676861AE5AF0D002CE9E5 /* JFRWebSocketControllerDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = JFRWebSocketControllerDelegate.h; path = ../../JFRWebSocketControllerDelegate.h; sourceTree = "<group>"; };
+		FCA676871AE5B1BC002CE9E5 /* JFRLog.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = JFRLog.m; path = ../../JFRLog.m; sourceTree = "<group>"; };
+		FCA676881AE5B1BC002CE9E5 /* JFRLog.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = JFRLog.h; path = ../../JFRLog.h; sourceTree = "<group>"; };
+		FCA6768A1AE5EB99002CE9E5 /* JFRWebSocketWriteController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = JFRWebSocketWriteController.h; path = ../../JFRWebSocketWriteController.h; sourceTree = "<group>"; };
+		FCA6768B1AE5EB99002CE9E5 /* JFRWebSocketWriteController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = JFRWebSocketWriteController.m; path = ../../JFRWebSocketWriteController.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -73,20 +90,8 @@
 		6B22F5C71A9D94C80052A037 /* SimpleTest */ = {
 			isa = PBXGroup;
 			children = (
-				6B22F5EF1A9D967D0052A037 /* JFRWebSocket.h */,
-				6B22F5F01A9D967D0052A037 /* JFRWebSocket.m */,
-				6B22F5CC1A9D94C80052A037 /* AppDelegate.h */,
-				6B22F5CD1A9D94C80052A037 /* AppDelegate.m */,
-				6B22F5CF1A9D94C80052A037 /* ViewController.h */,
-				6B22F5D01A9D94C80052A037 /* ViewController.m */,
-				FC1A3CE41ADD6C8A00F0BDBD /* TestCaseTableViewcell.h */,
-				FC1A3CE51ADD6C8A00F0BDBD /* TestCaseTableViewcell.m */,
-				FC1A3CDE1ADCCF9200F0BDBD /* TestCase.h */,
-				FC1A3CDF1ADCCF9200F0BDBD /* TestCase.m */,
-				FC1A3CD71ADC751800F0BDBD /* TestWebSocket.h */,
-				FC1A3CD81ADC751800F0BDBD /* TestWebSocket.m */,
-				FC1A3CDB1ADCCF1600F0BDBD /* TestOperation.h */,
-				FC1A3CDC1ADCCF1700F0BDBD /* TestOperation.m */,
+				FCA6767C1AE54D3E002CE9E5 /* WebSocket */,
+				FCA6767B1AE54D32002CE9E5 /* Test Interface */,
 				6B22F5D21A9D94C80052A037 /* Main.storyboard */,
 				6B22F5D51A9D94C80052A037 /* Images.xcassets */,
 				6B22F5D71A9D94C80052A037 /* LaunchScreen.xib */,
@@ -102,6 +107,46 @@
 				6B22F5CA1A9D94C80052A037 /* main.m */,
 			);
 			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		FCA6767B1AE54D32002CE9E5 /* Test Interface */ = {
+			isa = PBXGroup;
+			children = (
+				6B22F5CC1A9D94C80052A037 /* AppDelegate.h */,
+				6B22F5CD1A9D94C80052A037 /* AppDelegate.m */,
+				6B22F5CF1A9D94C80052A037 /* ViewController.h */,
+				6B22F5D01A9D94C80052A037 /* ViewController.m */,
+				FC1A3CE41ADD6C8A00F0BDBD /* TestCaseTableViewcell.h */,
+				FC1A3CE51ADD6C8A00F0BDBD /* TestCaseTableViewcell.m */,
+				FC1A3CDE1ADCCF9200F0BDBD /* TestCase.h */,
+				FC1A3CDF1ADCCF9200F0BDBD /* TestCase.m */,
+				FC1A3CD71ADC751800F0BDBD /* TestWebSocket.h */,
+				FC1A3CD81ADC751800F0BDBD /* TestWebSocket.m */,
+				FC1A3CDB1ADCCF1600F0BDBD /* TestOperation.h */,
+				FC1A3CDC1ADCCF1700F0BDBD /* TestOperation.m */,
+			);
+			name = "Test Interface";
+			sourceTree = "<group>";
+		};
+		FCA6767C1AE54D3E002CE9E5 /* WebSocket */ = {
+			isa = PBXGroup;
+			children = (
+				6B22F5EF1A9D967D0052A037 /* JFRWebSocket.h */,
+				6B22F5F01A9D967D0052A037 /* JFRWebSocket.m */,
+				FCA676811AE59E3D002CE9E5 /* JFRWebSocketController.h */,
+				FCA676821AE59E3D002CE9E5 /* JFRWebSocketController.m */,
+				FCA6767D1AE5992B002CE9E5 /* JFRWebSocketReadController.h */,
+				FCA6767E1AE5992B002CE9E5 /* JFRWebSocketReadController.m */,
+				FCA6768A1AE5EB99002CE9E5 /* JFRWebSocketWriteController.h */,
+				FCA6768B1AE5EB99002CE9E5 /* JFRWebSocketWriteController.m */,
+				FCA676801AE59B27002CE9E5 /* JFRSocketControllerStatus.h */,
+				FCA676861AE5AF0D002CE9E5 /* JFRWebSocketControllerDelegate.h */,
+				FCA676881AE5B1BC002CE9E5 /* JFRLog.h */,
+				FCA676871AE5B1BC002CE9E5 /* JFRLog.m */,
+				FC480AE81ADF14A00020B703 /* NSData+JFRBinaryInspection.h */,
+				FC480AE91ADF14A00020B703 /* NSData+JFRBinaryInspection.m */,
+			);
+			name = WebSocket;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -174,11 +219,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FCA6767F1AE5992B002CE9E5 /* JFRWebSocketReadController.m in Sources */,
 				6B22F5D11A9D94C80052A037 /* ViewController.m in Sources */,
 				FC1A3CE61ADD6C8A00F0BDBD /* TestCaseTableViewcell.m in Sources */,
 				FC1A3CD91ADC751800F0BDBD /* TestWebSocket.m in Sources */,
 				6B22F5CE1A9D94C80052A037 /* AppDelegate.m in Sources */,
+				FCA676891AE5B1BC002CE9E5 /* JFRLog.m in Sources */,
+				FC480AEA1ADF14A00020B703 /* NSData+JFRBinaryInspection.m in Sources */,
+				FCA6768C1AE5EB99002CE9E5 /* JFRWebSocketWriteController.m in Sources */,
 				6B22F5F11A9D967D0052A037 /* JFRWebSocket.m in Sources */,
+				FCA676831AE59E3D002CE9E5 /* JFRWebSocketController.m in Sources */,
 				6B22F5CB1A9D94C80052A037 /* main.m in Sources */,
 				FC1A3CDD1ADCCF1700F0BDBD /* TestOperation.m in Sources */,
 				FC1A3CE01ADCCF9200F0BDBD /* TestCase.m in Sources */,

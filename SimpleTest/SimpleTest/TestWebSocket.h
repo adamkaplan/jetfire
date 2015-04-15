@@ -17,6 +17,6 @@
 
 + (instancetype)testSocketForCommand:(NSString *)command;
 
-+ (instancetype)testSocketForCommand:(NSString *)command parameters:(NSString *)params;
++ (instancetype)testSocketForCommand:(NSString *)command parameters:(NSDictionary *)params;
 
 @end

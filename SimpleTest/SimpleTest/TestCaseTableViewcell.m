@@ -11,6 +11,8 @@
 
 @interface TestCaseTableViewcell ()
 @property (nonatomic) UILabel *statusLabel;
+@property (nonatomic) UIView *statusView; // UITableViewCell does some introspection on this view and if it's a label, causes a memory leak.
+@property (nonatomic) UIActivityIndicatorView *spinnerView;
 @end
 
 @implementation TestCaseTableViewcell
@@ -23,22 +25,21 @@
     self.statusLabel.textAlignment = NSTextAlignmentRight;
     
     self.detailTextLabel.text = @" ";
+    
+    self.statusView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 60, 30)];
+    [self.statusView addSubview:self.statusLabel];
+    self.accessoryView = self.statusView;
+    
+    self.spinnerView = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleGray];
 }
-
-/*
-- (void)setSelected:(BOOL)selected animated:(BOOL)animated {
-    [super setSelected:selected animated:animated];
-
-    // Configure the view for the selected state
-}
-*/
 
 - (void)prepareForReuse {
     [super prepareForReuse];
     self.testCase = nil;
     self.textLabel.text = nil;
     self.detailTextLabel.text = nil;
-    self.accessoryView = nil;
+    self.statusLabel.text = nil;
+    self.accessoryView = self.statusView;
 }
 
 - (void)setTestCase:(TestCase *)testCase {
@@ -49,18 +50,20 @@
     _testCase = testCase;
 
     if (testCase) {
-        [testCase addObserver:self forKeyPath:@"identifier" options:NSKeyValueObservingOptionNew context:nil];
-        [testCase addObserver:self forKeyPath:@"summary" options:NSKeyValueObservingOptionNew context:nil];
-        [testCase addObserver:self forKeyPath:@"status" options:NSKeyValueObservingOptionNew context:nil];
-    
         self.textLabel.text = _testCase.identifier ?: @" "; // For some reason blank strings break the cell updating
         self.detailTextLabel.text = _testCase.summary ?: @" "; // For some reason blank strings break the cell updating
         [self updateStatusLabel];
+        
+        [testCase addObserver:self forKeyPath:@"identifier" options:NSKeyValueObservingOptionNew context:nil];
+        [testCase addObserver:self forKeyPath:@"summary" options:NSKeyValueObservingOptionNew context:nil];
+        [testCase addObserver:self forKeyPath:@"status" options:NSKeyValueObservingOptionNew context:nil];
     }
 }
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
-    NSAssert(![change[NSKeyValueChangeNewKey] isKindOfClass:[NSNull class]], @"Invalid test case value for %@ from Autobahn: %@", keyPath, change);
+    NSString *value = change[NSKeyValueChangeNewKey];
+    
+    NSAssert(![value isKindOfClass:[NSNull class]], @"Invalid test case value for %@ from Autobahn: %@", keyPath, change);
 
     __weak typeof(self) weakSelf = self;
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -69,10 +72,10 @@
         }
         
         if ([keyPath isEqualToString:@"identifier"]) {
-            weakSelf.textLabel.text = change[NSKeyValueChangeNewKey];
+            weakSelf.textLabel.text = value;
         
         } else if ([keyPath isEqualToString:@"summary"]) {
-            weakSelf.detailTextLabel.text = change[NSKeyValueChangeNewKey];
+            weakSelf.detailTextLabel.text = value;
             
         } else {
             [weakSelf updateStatusLabel];
@@ -81,17 +84,10 @@
 }
 
 - (void)updateStatusLabel {
-    static UIActivityIndicatorView *spinnerView;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        spinnerView = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleGray];
-        [spinnerView startAnimating];
-    });
-    
     NSString *text;
     switch (self.testCase.status) {
         case TestCaseStatusNotRun:
-            text = @"-";
+            text = @" ";
             break;
             
         case TestCaseStatusPassed:
@@ -103,7 +99,6 @@
             break;
             
         case TestCaseStatusRunning:
-            self.accessoryView = spinnerView;
             break;
             
         default:
@@ -112,8 +107,13 @@
     }
     
     if (text) {
+        [self.spinnerView stopAnimating];
+        
         self.statusLabel.text = text;
-        self.accessoryView = self.statusLabel;
+        self.accessoryView = self.statusView;
+    } else {
+        self.accessoryView = self.spinnerView;
+        [self.spinnerView startAnimating];
     }
 }
 

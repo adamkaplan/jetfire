@@ -13,8 +13,8 @@
 @interface TestOperation : NSOperation
 
 @property (nonatomic) TestWebSocket *socket;
-
 @property (nonatomic) TestCase *testCase;
+@property (nonatomic) BOOL mimic;
 
 - (instancetype)initWithTestCase:(TestCase *)testCase command:(NSString *)command;
 

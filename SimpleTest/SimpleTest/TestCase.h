@@ -20,7 +20,7 @@ typedef NS_ENUM(NSUInteger, TestCaseStatus) {
 @property (nonatomic) NSString *summary;
 @property (nonatomic) NSString *expectation;
 @property (nonatomic) NSString *identifier;
-@property (nonatomic) NSInteger number;
+@property (nonatomic) NSString* number;
 @property (nonatomic) TestCaseStatus status;
 
 @end

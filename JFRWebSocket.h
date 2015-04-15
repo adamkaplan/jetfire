@@ -87,6 +87,9 @@
  */
 - (void)writeString:(NSString*)string;
 
+//- (void)sendPing:(NSData *)data;
+//- (void)sendPong:(NSData *)data;
+
 /**
  Add a header to send along on the the HTTP connect.
  @param: value is the string to send
