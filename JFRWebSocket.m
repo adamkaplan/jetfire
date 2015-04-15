@@ -318,20 +318,20 @@ static int BUFFER_MAX = 2048;
 /////////////////////////////////////////////////////////////////////////////
 - (void)processInputStream
 {
-    @autoreleasepool {
-        uint8_t buffer[BUFFER_MAX];
-        NSInteger length = [self.inputStream read:buffer maxLength:BUFFER_MAX];
-        if(length > 0) {
+    uint8_t buffer[BUFFER_MAX];
+    NSInteger length = [self.inputStream read:buffer maxLength:BUFFER_MAX];
+    if(length > 0) {
+        if(!self.isConnected) {
+            _isConnected = [self processHTTP:buffer length:length];
             if(!self.isConnected) {
-                _isConnected = [self processHTTP:buffer length:length];
-                if(!self.isConnected) {
-                    [self notifyDelegateDidDisconnectWithReason:@"Invalid HTTP upgrade" code:1];
-                }
-            } else {
-                BOOL process = NO;
-                if(self.inputQueue.count == 0) {
-                    process = YES;
-                }
+                [self notifyDelegateDidDisconnectWithReason:@"Invalid HTTP upgrade" code:1];
+            }
+        } else {
+            BOOL process = NO;
+            if(self.inputQueue.count == 0) {
+                process = YES;
+            }
+            @autoreleasepool {
                 [self.inputQueue addObject:[NSData dataWithBytes:buffer length:length]];
                 if(process) {
                     [self dequeueInput];
@@ -379,7 +379,7 @@ static int BUFFER_MAX = 2048;
         if([self validateResponse:buffer length:totalSize])
         {
             [self notifyDelegateDidConnect];
-
+            
             totalSize += 1; //skip the last \n
             NSInteger  restSize = bufferLen-totalSize;
             if(restSize > 0) {
