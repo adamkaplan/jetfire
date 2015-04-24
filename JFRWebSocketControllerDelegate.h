@@ -18,6 +18,10 @@
 
 - (void)websocketControllerDidDisconnect:(JFRWebSocketController *)controller error:(NSError *)error;
 
+- (void)websocketController:(JFRWebSocketController *)controller shouldFailWithError:(NSError *)error;
+
+- (void)websocketController:(JFRWebSocketController *)controller shouldCloseWithError:(NSError *)error;
+
 @end
 
 #pragma mark Read Controller Delegate

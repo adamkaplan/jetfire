@@ -8,7 +8,7 @@
 
 #include "JFRLog.h"
 
-void JFRLog(id self, NSString *format, ...) {
+void _JFRLog(id self, NSString *format, ...) {
     va_list args;
     va_start(args, format);
     NSLogv([NSString stringWithFormat:@"[socket %p] %@", self, format], args);

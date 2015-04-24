@@ -13,8 +13,10 @@
 #import "TestCaseTableViewcell.h"
 #import "TestOperation.h"
 
-static const int FirstTest = 49; // use to skip to an interesting test.
-//static const int FirstTest = 1;
+//static const int FirstTest = 49; // use to skip to an interesting test.
+//static const int FirstTest = 50;
+static const int FirstTest = 215;
+static const int LastTest = 215;
 
 @interface ViewController ()
 @property (nonatomic) NSOperationQueue *queue;
@@ -39,7 +41,9 @@ static const int FirstTest = 49; // use to skip to an interesting test.
     }
     
     TestOperation *countOp = [[TestOperation alloc] initWithTestCase:nil command:@"getCaseCount"];
+    
     [self.queue addOperation:countOp];
+    
     [self.queue addOperationWithBlock:^{
         NSInteger testCount = [countOp.socket.receivedText integerValue];
         //NSLog(@"Test Count: %lu", testCount);
@@ -49,6 +53,7 @@ static const int FirstTest = 49; // use to skip to an interesting test.
             TestCase *testCase = [TestCase new];
             testCase.number = [NSString stringWithFormat:@"%i", i];
             [testCases addObject:testCase];
+            if (i == LastTest) { break; }
         }
         
         self.testCases = [testCases copy];
@@ -62,6 +67,7 @@ static const int FirstTest = 49; // use to skip to an interesting test.
             [self getAutobahnTestInfo:testCase];
             [self runAutobahnTest:testCase];
             [self verifyAutobahnTest:testCase];
+            [self updateResultsForAutobahnTest:testCase];
         }
     }];
 }
@@ -70,7 +76,9 @@ static const int FirstTest = 49; // use to skip to an interesting test.
 
 - (void)getAutobahnTestInfo:(TestCase *)test {
     TestOperation *op = [[TestOperation alloc] initWithTestCase:test command:@"getCaseInfo"];
+    
     [self.queue addOperation:op];
+    
     [self.queue addOperationWithBlock:^{
         NSString *jsonStr = op.socket.receivedText;
         NSData *jsonData = [NSData dataWithBytesNoCopy:(void *)[jsonStr UTF8String]
@@ -88,6 +96,7 @@ static const int FirstTest = 49; // use to skip to an interesting test.
                                           animated:YES];
         });
         NSLog(@"About to run %@ – %@", test.identifier, test.summary);
+        test.status = TestCaseStatusRunning;
     }];
 }
 
@@ -95,12 +104,16 @@ static const int FirstTest = 49; // use to skip to an interesting test.
     //NSLog(@"Running test %@ - %@", test.identifier, test.summary);
     TestOperation *op = [[TestOperation alloc] initWithTestCase:test command:@"runCase"];
     op.mimic = YES;
+    
     [self.queue addOperation:op];
 }
 
 - (void)verifyAutobahnTest:(TestCase *)test {
     TestOperation *op = [[TestOperation alloc] initWithTestCase:test command:@"getCaseStatus"];
+    op.startDelayTimeInterval = 0.10; // need a brief delay due to apparent race conditions in Autobahn
+    
     [self.queue addOperation:op];
+    
     [self.queue addOperationWithBlock:^{
         NSString *jsonStr = op.socket.receivedText;
         NSData *jsonData = [NSData dataWithBytesNoCopy:(void *)[jsonStr UTF8String]
@@ -115,6 +128,12 @@ static const int FirstTest = 49; // use to skip to an interesting test.
             test.status = TestCaseStatusFailed;
         }
     }];
+}
+
+- (void)updateResultsForAutobahnTest:(TestCase *)test {
+    TestOperation *op = [[TestOperation alloc] initWithTestCase:test command:@"updateReports"];
+    
+    [self.queue addOperation:op];
 }
 
 #pragma mark - Table View Datasource and Delegate

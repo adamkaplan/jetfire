@@ -14,13 +14,23 @@ const void *const kJFRSocketReadControllerQueueIdentifierIO  = "JFRSocketReadCon
 
 static NSString *const kJFRErrorDomain = @"JFRWebSocket";
 
+
 @implementation JFRWebSocketController
 
 + (NSError *)errorWithDetail:(NSString *)detail code:(NSInteger)code {
-    NSDictionary* userInfo;
+    static NSDictionary *EmptyUserInfo;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        // User info dictionary with an explicit empty localized description. Otherwise NSError
+        // will make up something random, which is sent off the the server (which will fail the cnxn)
+        EmptyUserInfo = @{ NSLocalizedDescriptionKey: @"" };
+    });
+    
+    NSDictionary *userInfo = EmptyUserInfo;
     if (detail) {
         userInfo = @{ NSLocalizedDescriptionKey: detail };
     }
+    
     return [NSError errorWithDomain:kJFRErrorDomain code:code userInfo:userInfo];
 }
 

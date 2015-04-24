@@ -12,15 +12,17 @@
 @interface JFRWebSocketReadController : JFRWebSocketController
 
 /** Input stream provided during intialization */
-@property (nonatomic, readonly) NSInputStream *inputStream;
+@property (nonatomic, readonly) CFReadStreamRef inputStream;
 
-@property (nonatomic, assign) id<JFRWebSocketReadControllerDelegate> delegate;
+@property (nonatomic, weak) id<JFRWebSocketReadControllerDelegate> delegate;
 
 /** Initialize with an input stream. The stream must be new and un-opened */
-- (instancetype)initWithInputStream:(NSInputStream *)inputStream NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithInputStream:(CFReadStreamRef)inputStream NS_DESIGNATED_INITIALIZER;
 
 - (void)connect;
 
 - (void)disconnect;
+
+- (void)initiateCloseForTimeInterval:(NSTimeInterval)interval;
 
 @end

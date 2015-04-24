@@ -14,6 +14,12 @@
 #import "JFRLog.h"
 #import "NSData+JFRBinaryInspection.h"
 
+#if defined(TEST) || 1
+static const BOOL kJFRSerializeCloseHandler = YES; // For testing, message processing need to be serial
+#else
+static const BOOL kJFRSerializeCloseHandler = NO;
+#endif
+
 @interface JFRWebSocket () <JFRWebSocketReadControllerDelegate, JFRWebSocketWriteControllerDelegate>
 @property (atomic) NSDictionary *headers;
 @property (nonatomic) NSURL *url;
@@ -56,6 +62,11 @@ static NSString *const errorDomain = @"JFRWebSocket";
     return self;
 }
 /////////////////////////////////////////////////////////////////////////////
+- (void)dealloc {
+    self.readController.delegate = nil;
+    self.writeController.delegate = nil;
+}
+/////////////////////////////////////////////////////////////////////////////
 //Exposed method for connecting to URL provided in init method.
 - (void)connect
 {
@@ -68,13 +79,13 @@ static NSString *const errorDomain = @"JFRWebSocket";
     CFWriteStreamRef writeStream = NULL;
     CFStreamCreatePairWithSocketToHost(NULL, (__bridge CFStringRef)self.url.host, [[self port] intValue], &readStream, &writeStream);
     
-    self.readController = [[JFRWebSocketReadController alloc] initWithInputStream:(__bridge  NSInputStream *)readStream];
+    self.readController = [[JFRWebSocketReadController alloc] initWithInputStream:readStream];
     self.readController.delegate = self;
     self.readController.voipEnabled = self.voipEnabled;
     self.readController.allowSelfSignedSSLCertificates = self.selfSignedSSL;
     [self.readController connect];
     
-    self.writeController = [[JFRWebSocketWriteController alloc] initWithOutputStream:(__bridge NSOutputStream *)writeStream];
+    self.writeController = [[JFRWebSocketWriteController alloc] initWithOutputStream:writeStream];
     self.writeController.delegate = self;
     self.writeController.voipEnabled = self.voipEnabled;
     self.writeController.allowSelfSignedSSLCertificates = self.selfSignedSSL;
@@ -83,8 +94,8 @@ static NSString *const errorDomain = @"JFRWebSocket";
 /////////////////////////////////////////////////////////////////////////////
 - (void)disconnect
 {
-    [self.writeController disconnect];
-    [self.readController disconnect];
+    NSError *error = [JFRWebSocketController errorWithDetail:nil code:JFRCloseCodeNormal];
+    [self websocketController:nil shouldCloseWithError:error];
 }
 /////////////////////////////////////////////////////////////////////////////
 -(void)writeString:(NSString*)string
@@ -185,7 +196,58 @@ static NSString *const errorDomain = @"JFRWebSocket";
 }
 
 - (void)websocketControllerDidDisconnect:(JFRWebSocketController *)controller error:(NSError *)error {
+    if (self.writeController.status != JFRSocketControllerStatusClosed || self.readController.status != JFRSocketControllerStatusClosed) {
+        // If this delegate method was triggered while the connections are still open, it indicates a
+        // transport-layer error. Per the RFC, ok to tear up the socket.
+        [self.writeController disconnect];
+        [self.readController disconnect];
+    }
     [self notifyDelegateDidDisconnectWithReason:error.localizedDescription code:error.code];
+}
+
+// Fail the WS immediately (client close connection)
+- (void)websocketController:(JFRWebSocketController *)controller shouldFailWithError:(NSError *)error {
+    if (kJFRSerializeCloseHandler) {
+        dispatch_async(self.delegateQueue, ^{
+            [self.writeController failWithCloseCode:error.code reason:error.localizedDescription];
+        });
+    } else {
+        [self.writeController failWithCloseCode:error.code reason:error.localizedDescription];
+    }
+
+}
+
+// Close the WS with an error (server closes connection)
+- (void)websocketController:(JFRWebSocketController *)controller shouldCloseWithError:(NSError *)error {
+    // The close handshake requires that the client & server must both send AND recieve a close frame.
+
+    void(^block)(void) = ^{
+        if (kJFRSerializeCloseHandler) {
+            dispatch_async(self.delegateQueue, ^{
+                [self.writeController writeCloseCode:error.code reason:error.localizedDescription];
+            });
+        } else {
+            [self.writeController writeCloseCode:error.code reason:error.localizedDescription];
+        }
+    };
+    
+    if (self.readController.status == JFRSocketControllerStatusClosed || self.writeController.status == JFRSocketControllerStatusClosed) {
+        [self websocketControllerDidDisconnect:controller error:error];
+        
+    } else if (self.writeController.status == JFRSocketControllerStatusClosingHandshakeComplete) {
+        // Client-initiated close. Wait for server close frame to complete handshake, or time out.
+        [self.readController initiateCloseForTimeInterval:10.0];
+        
+    } else if (self.readController.status == JFRSocketControllerStatusClosingHandshakeComplete) {
+        // Server-initiated close. Send close frame to complete handshake
+        //[self.writeController writeCloseCode:error.code reason:error.localizedDescription];
+        block();
+        
+    } else if (self.writeController.status == JFRSocketControllerStatusOpen) {
+        // this is what happens if -disconnect is called (user requested close) during an open connection.
+        //[self.writeController writeCloseCode:error.code reason:error.localizedDescription];
+        block();
+    }
 }
 
 #pragma mark - JRFWebSocketReadControllerDelegate
@@ -199,7 +261,12 @@ static NSString *const errorDomain = @"JFRWebSocket";
 }
 
 - (void)websocketController:(JFRWebSocketReadController *)controller didReceivePing:(NSData *)ping {
-    [self.writeController writePong:ping];
+    if (kJFRSerializeCloseHandler) {
+        dispatch_async(self.delegateQueue, ^{ [self.writeController writePong:ping]; });
+    } else {
+        [self.writeController writePong:ping];
+    }
+    
     [self notifyDelegateDidReceivePing];
 }
 
@@ -355,13 +422,6 @@ static NSString *const errorDomain = @"JFRWebSocket";
     dispatch_async(self.delegateQueue, ^{
         [self.delegate websocketDidReceivePing:self];
     });
-}
-
-/////////////////////////////////////////////////////////////////////////////
--(void)dealloc
-{
-    self.readController.delegate = nil;
-    self.writeController.delegate = nil;
 }
 /////////////////////////////////////////////////////////////////////////////
 @end

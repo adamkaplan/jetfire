@@ -16,7 +16,6 @@ static NSString *testAgent;
 @interface TestOperation () <JFRWebSocketDelegate>
 @property (nonatomic) BOOL isExecuting;
 @property (nonatomic) BOOL isFinished;
-@property (nonatomic) BOOL nanoSleep;
 @end
 
 @implementation TestOperation
@@ -38,10 +37,6 @@ static NSString *testAgent;
             params[@"case"] = testCase.number;
         }
         
-        if ([command isEqualToString:@"getCaseStatus"]) {
-            _nanoSleep = YES;
-        }
-        
         _socket = [TestWebSocket testSocketForCommand:command parameters:params];
         _socket.delegate = self;
     }
@@ -54,9 +49,8 @@ static NSString *testAgent;
 
 - (void)main {
     self.isExecuting = YES;
-    self.testCase.status = TestCaseStatusRunning;
-    if (self.nanoSleep) {
-        [NSThread sleepForTimeInterval:0.2];
+    if (self.startDelayTimeInterval > 0.) {
+        [NSThread sleepForTimeInterval:self.startDelayTimeInterval];
     }
     [self.socket connect];
 }
@@ -88,46 +82,38 @@ static NSString *testAgent;
 }
 
 - (void)websocketDidDisconnect:(JFRWebSocket *)socket error:(NSError *)error {
-    NSString *reason = error ? [error localizedDescription] : @"Cleanly";
+    NSString *reason = error ? [error localizedDescription] : @"cleanly";
     NSLog(@"[client] disconnected %@", reason);
+    
     self.socket.lastError = error;
     self.socket.delegate = nil;
     [self setExecuting:NO finished:YES];
 }
 
 - (void)websocket:(JFRWebSocket *)socket didReceiveMessage:(NSString *)string {
+    //NSLog(@"[client] received message [%@]", string);
+    NSLog(@"[client] received message");
+    
     self.socket.receivedText = string;
-    NSLog(@"[client] received message [%@]", string);
     if (self.mimic) {
         [self.socket writeString:string];
-        [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(done) object:nil];
-        [self performSelector:@selector(done) withObject:nil afterDelay:1.0];
-    } else {
-        [self done];
     }
 }
 
 - (void)websocket:(JFRWebSocket *)socket didReceiveData:(NSData *)data {
+    //NSLog(@"[client] received data %@", data);
+    NSLog(@"[client] received data");
+    
     self.socket.receivedData = data;
-    NSLog(@"[client] received data %@", data);
     if (self.mimic) {
         [self.socket writeData:data];
-        [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(done) object:nil];
-        [self performSelector:@selector(done) withObject:nil afterDelay:1.0];
-    } else {
-        [self done];
     }
 }
 
 - (void)websocketDidReceivePing:(JFRWebSocket *)socket {
-    self.socket.receivedPing = YES;
     NSLog(@"[client] ping!");
-    if (self.mimic) {
-        [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(done) object:nil];
-        [self performSelector:@selector(done) withObject:nil afterDelay:1.0]; // allow time for queued pong to be sent
-    } else {
-        [self done];
-    }
+    
+    self.socket.receivedPing = YES;
 }
 
 @end

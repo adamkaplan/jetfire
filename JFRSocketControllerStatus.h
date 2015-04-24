@@ -13,8 +13,9 @@ typedef NS_ENUM(NSUInteger, JFRSocketControllerStatus) {
     JFRSocketControllerStatusNew        = 0,
     JFRSocketControllerStatusOpening    = 1,
     JFRSocketControllerStatusOpen       = 2,
-    JFRSocketControllerStatusClosing    = 3,
-    JFRSocketControllerStatusClosed     = 4,
+    JFRSocketControllerStatusClosingHandshakeInitiated = 3,
+    JFRSocketControllerStatusClosingHandshakeComplete  = 4,
+    JFRSocketControllerStatusClosed     = 5,
 };
 
 #endif

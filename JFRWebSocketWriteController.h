@@ -12,16 +12,18 @@
 @interface JFRWebSocketWriteController : JFRWebSocketController
 
 /** Output stream provided during intialization */
-@property (nonatomic, readonly) NSOutputStream *outputStream;
+@property (nonatomic, readonly) CFWriteStreamRef outputStream;
 
-@property (nonatomic, assign) id<JFRWebSocketWriteControllerDelegate> delegate;
+@property (nonatomic, weak) id<JFRWebSocketWriteControllerDelegate> delegate;
 
 /** Initialize with an input stream. The stream must be new and un-opened */
-- (instancetype)initWithOutputStream:(NSOutputStream *)outputStream NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithOutputStream:(CFWriteStreamRef)outputStream NS_DESIGNATED_INITIALIZER;
 
 - (void)connect;
 
 - (void)disconnect;
+
+- (void)failWithCloseCode:(NSUInteger)code reason:(NSString *)reason;
 
 - (void)writeString:(NSString *)string;
 
@@ -30,6 +32,8 @@
 - (void)writePing:(NSData *)data;
 
 - (void)writePong:(NSData *)data;
+
+- (void)writeCloseCode:(NSUInteger)code reason:(NSString *)reason;
 
 /** Writes data as raw bytes, without any introspection or additional web socket framing.
  * Typically used to send HTTP packets prior to completing the web socket handshake.

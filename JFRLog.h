@@ -11,6 +11,13 @@
 
 #import <Foundation/Foundation.h>
 
-void JFRLog(id self, NSString *format, ...);
+#if FALSE
+
+#define JFRLog(SELF, FMT, ...) do {} while(false)
+#else
+#define JFRLog(SELF, FMT, ...) _JFRLog(SELF, FMT, ## __VA_ARGS__)
+#endif
+
+void _JFRLog(id self, NSString *format, ...);
 
 #endif /* defined(__SimpleTest__JFRLog__) */

@@ -21,7 +21,7 @@ static const uint8_t JFRPayloadLenMask      = 0x7F;
 static const size_t  JFRMaxFrameSize        = 32;
 
 /** WebSocket opCodes, RFC-6422 */
-typedef NS_ENUM(NSUInteger, JFROpCode) {
+typedef NS_ENUM(UInt8, JFROpCode) {
     JFROpCodeContinueFrame      = 0x0,
     JFROpCodeTextFrame          = 0x1,
     JFROpCodeBinaryFrame        = 0x2,
@@ -31,6 +31,16 @@ typedef NS_ENUM(NSUInteger, JFROpCode) {
     JFROpCodePong               = 0xA,
     //B-F reserved.
 };
+
+static inline BOOL JFROpCodeIsControl(JFROpCode opcode) {
+    // RFC-6455 5.5 - Control frames are identified by opcodes where the most significant bit of the opcode is 1.
+    return opcode & 0x8;
+}
+
+static inline BOOL JFROpCodeIsValid(JFROpCode opcode) {
+    // RFC-6455 5.5 - Control frames are identified by opcodes where the most significant bit of the opcode is 1.
+    return opcode < 3 || (opcode < 0xB && opcode > 0x7);
+}
 
 /** WebSocket close codes, RFC-6422 */
 typedef NS_ENUM(NSUInteger, JFRCloseCode) {

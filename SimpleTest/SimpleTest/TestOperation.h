@@ -15,6 +15,7 @@
 @property (nonatomic) TestWebSocket *socket;
 @property (nonatomic) TestCase *testCase;
 @property (nonatomic) BOOL mimic;
+@property (nonatomic) NSTimeInterval startDelayTimeInterval; // delay on start, optional
 
 - (instancetype)initWithTestCase:(TestCase *)testCase command:(NSString *)command;
 
