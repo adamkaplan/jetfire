@@ -71,7 +71,7 @@ static NSString *const errorDomain = @"JFRWebSocket";
 - (void)connect
 {
 //    if(self.isCreated) {
-//        JFRLog(self, @"already connected.");
+//        JFRLog(JFRWarn, @"already connected.");
 //        return;
 //    }
 //    self.isCreated = YES;
@@ -98,17 +98,17 @@ static NSString *const errorDomain = @"JFRWebSocket";
     [self websocketController:nil shouldCloseWithError:error];
 }
 /////////////////////////////////////////////////////////////////////////////
--(void)writeString:(NSString*)string
+-(void)writeString:(NSString *)string
 {
     [self.writeController writeString:string];
 }
 /////////////////////////////////////////////////////////////////////////////
--(void)writeData:(NSData*)data
+-(void)writeData:(NSData *)data
 {
     [self.writeController writeData:data];
 }
 /////////////////////////////////////////////////////////////////////////////
-- (void)addHeader:(NSString*)value forKey:(NSString*)key
+- (void)addHeader:(NSString *)value forKey:(NSString *)key
 {
     // This method is not expected to be called often. Opt for the safety of immutability.
     NSMutableDictionary *mutableHeaders = self.headers ? [self.headers mutableCopy] : [NSMutableDictionary dictionary];
@@ -170,7 +170,7 @@ static NSString *const errorDomain = @"JFRWebSocket";
     NSData *serializedRequest = (__bridge_transfer NSData *)(CFHTTPMessageCopySerializedMessage(urlRequest));
     CFRelease(urlRequest);
     
-    JFRLog(self, @"connection request:\n%@", [[NSString alloc] initWithData:serializedRequest encoding:NSUTF8StringEncoding]);
+    JFRLog(JFRInfo, @"connection request:\n%@", [[NSString alloc] initWithData:serializedRequest encoding:NSUTF8StringEncoding]);
     return serializedRequest;
 }
 /////////////////////////////////////////////////////////////////////////////
@@ -275,89 +275,14 @@ static NSString *const errorDomain = @"JFRWebSocket";
 #pragma mark - Connection Teardown
 
 /////////////////////////////////////////////////////////////////////////////
--(void)terminateNetworkConnections
+- (void)terminateNetworkConnections
 {
-    JFRLog(self, @"Terminating all network connections");
-//    if (self.outputStream) {
-//        self.outputStream.delegate = nil;
-//        
-//        if (self.outputStream.streamStatus != NSStreamStatusClosed) {
-//            [self.outputStream close];
-//        }
-//        
-//        CFWriteStreamSetDispatchQueue((CFWriteStreamRef)self.outputStream, NULL);
-//    }
+    JFRLog(JFRInfo, @"Terminating all network connections");
 }
-///////////////////////////////////////////////////////////////////////////////
-//// Use `immediateDisconnect` to terminate all network operations immediately. Note that self.isConnected will
-//- (void)disconnectStream {
-//    
-//    NSAssert(dispatch_get_specific(DispatchQueueIdentifierKey) == DispatchQueueIdentifierIO, @"%s Wrong queue", __PRETTY_FUNCTION__);
-//    
-//    JFRLog(self, @"Disconnecting stream.");
-//    [self terminateNetworkConnections];
-//    _isConnected = NO;
-//    
-//    // Callers are required to notify the delegate that the connection has disconnected
-//}
-///////////////////////////////////////////////////////////////////////////////
-//// Use `deferredDisconnectWithError:` to enqueue disconnection on the processing queue. This has the benefit of
-//// terminating all network activity, but continuing to process any pending messages.
-//- (void)disconnectStreamDeferredWithReason:(NSString *)reason code:(NSInteger)code {
-//    
-//    NSAssert(dispatch_get_specific(DispatchQueueIdentifierKey) == DispatchQueueIdentifierIO, @"%s Wrong queue", __PRETTY_FUNCTION__);
-//
-//    if (self.isConnected) {
-//        
-//        if (code == JFRCloseCodeNormal) {
-//            JFRLog(self, @"Disconnecting cleanly.");
-//        } else {
-//            JFRLog(self, @"Disconnecting with error %ld - %@.", code, reason);
-//        }
-//        
-//        // Notify delegate of disconnection after any pending frame parsing completes.
-//        __weak typeof(self) weakSelf = self;
-//        dispatch_async(self.parsingQueue, ^{
-//            [weakSelf notifyDelegateDidDisconnectWithReason:reason code:code];
-//        });
-//    }
-//    
-//    [self terminateNetworkConnections];
-//    _isConnected = NO;
-//}
-/////////////////////////////////////////////////////////////////////////////
 
-#pragma mark - Stream Processing Methods
-
-/////////////////////////////////////////////////////////////////////////////
-//-(void)writeError:(uint16_t)code
-//{
-//    JFRLog(self, @"Writing error code %d", code);
-//    
-//    if (self.ioQueue) {
-//        __weak typeof(self) weakSelf = self;
-//        dispatch_async(self.ioQueue, ^{
-//            //uint16_t buffer[1] = { CFSwapInt16BigToHost(code) };
-//            uint16_t networkCode = CFSwapInt16BigToHost(code);
-//            [weakSelf dequeueWrite:[NSData dataWithBytes:&networkCode length:sizeof(uint16_t)] withCode:JFROpCodeConnectionClose];
-//        });
-//    }
-//}
-/////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////
-//-(void)doWriteError
-//{
-//    NSError *error = [self.outputStream streamError];
-//    if (error) {
-//        [self disconnectStreamDeferredWithReason:error.localizedDescription code:error.code];
-//    } else {
-//        [self disconnectStreamDeferredWithReason:@"output stream error during write" code:2];
-//    }
-//}
-/////////////////////////////////////////////////////////////////////////////
--(NSError*)errorWithDetail:(NSString*)detail code:(NSInteger)code
+- (NSError *)errorWithDetail:(NSString *)detail code:(NSInteger)code
 {
-    NSDictionary* userInfo;
+    NSDictionary *userInfo;
     if (detail) {
         userInfo = @{ NSLocalizedDescriptionKey: detail };
     }
@@ -366,10 +291,9 @@ static NSString *const errorDomain = @"JFRWebSocket";
 
 #pragma mark - Delegate Notification
 
-/////////////////////////////////////////////////////////////////////////////
 // Centralize all delegate communication for simplicity. Nice side effect is improved branch
 // prediction by sharing the `responseToSelector` conditionals that don't usually change.
--(void)notifyDelegateDidConnect {
+- (void)notifyDelegateDidConnect {
     if (![self.delegate respondsToSelector:@selector(websocketDidConnect:)]) {
         return;
     }
@@ -379,7 +303,7 @@ static NSString *const errorDomain = @"JFRWebSocket";
     });
 }
 
--(void)notifyDelegateDidDisconnectWithReason:(NSString *)reason code:(NSInteger)code {
+- (void)notifyDelegateDidDisconnectWithReason:(NSString *)reason code:(NSInteger)code {
     if (![self.delegate respondsToSelector:@selector(websocketDidDisconnect:error:)]) {
         return;
     }
@@ -393,7 +317,7 @@ static NSString *const errorDomain = @"JFRWebSocket";
     });
 }
 
--(void)notifyDelegateDidReceiveMessage:(NSString *)message {
+- (void)notifyDelegateDidReceiveMessage:(NSString *)message {
     if (![self.delegate respondsToSelector:@selector(websocket:didReceiveMessage:)]) {
         return;
     }
@@ -403,7 +327,7 @@ static NSString *const errorDomain = @"JFRWebSocket";
     });
 }
 
--(void)notifyDelegateDidReceiveData:(NSData *)data {
+- (void)notifyDelegateDidReceiveData:(NSData *)data {
     if (![self.delegate respondsToSelector:@selector(websocket:didReceiveData:)]) {
         return;
     }
@@ -414,7 +338,7 @@ static NSString *const errorDomain = @"JFRWebSocket";
     
 }
 
--(void)notifyDelegateDidReceivePing {
+- (void)notifyDelegateDidReceivePing {
     if (![self.delegate respondsToSelector:@selector(websocketDidReceivePing:)]) {
         return;
     }
@@ -423,5 +347,5 @@ static NSString *const errorDomain = @"JFRWebSocket";
         [self.delegate websocketDidReceivePing:self];
     });
 }
-/////////////////////////////////////////////////////////////////////////////
+
 @end

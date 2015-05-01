@@ -91,18 +91,22 @@
             break;
             
         case TestCaseStatusPassed:
-            text = @"✔︎";
+            text = @"😎";
             break;
             
         case TestCaseStatusFailed:
-            text = @"❌";
+            text = @"😡";
             break;
             
         case TestCaseStatusRunning:
             break;
+        
+        case TestCaseStatusInformational:
+            text = @"😈";
+            break;
             
         default:
-            text = @"?";
+            text = @"😲";
             break;
     }
     

@@ -8,7 +8,13 @@
 
 #include "JFRLog.h"
 
-void _JFRLog(id self, NSString *format, ...) {
+const JFRLogLevel JFRCurrentLogLevel = JFRDebug;
+
+void _JFRLog(id self, JFRLogLevel level, NSString *format, ...) {
+    if (level > JFRCurrentLogLevel) {
+        return;
+    }
+    
     va_list args;
     va_start(args, format);
     NSLogv([NSString stringWithFormat:@"[socket %p] %@", self, format], args);

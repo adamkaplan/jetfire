@@ -11,13 +11,23 @@
 
 #import <Foundation/Foundation.h>
 
-#if FALSE
+typedef NS_ENUM(NSUInteger, JFRLogLevel) {
+    JFRError,
+    JFRWarn,
+    JFRInfo,
+    JFRDebug,
+    JFRBinary,
+};
 
-#define JFRLog(SELF, FMT, ...) do {} while(false)
+extern const JFRLogLevel JFRCurrentLogLevel;
+
+
+#if TRUE
+#define JFRLog(...) do {} while(false)
 #else
-#define JFRLog(SELF, FMT, ...) _JFRLog(SELF, FMT, ## __VA_ARGS__)
+#define JFRLog(LEVEL, FORMAT, ...) _JFRLog(self, LEVEL, FORMAT, ## __VA_ARGS__)
 #endif
 
-void _JFRLog(id self, NSString *format, ...);
+extern void _JFRLog(id self, JFRLogLevel level, NSString *format, ...);
 
 #endif /* defined(__SimpleTest__JFRLog__) */

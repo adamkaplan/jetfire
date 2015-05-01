@@ -12,7 +12,8 @@ typedef NS_ENUM(NSUInteger, TestCaseStatus) {
     TestCaseStatusNotRun = 0,
     TestCaseStatusRunning,
     TestCaseStatusPassed,
-    TestCaseStatusFailed
+    TestCaseStatusFailed,
+    TestCaseStatusInformational
 };
 
 @interface TestCase : NSObject

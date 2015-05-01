@@ -15,8 +15,8 @@
 
 //static const int FirstTest = 49; // use to skip to an interesting test.
 //static const int FirstTest = 50;
-static const int FirstTest = 215;
-static const int LastTest = 215;
+static const int FirstTest = 263;
+static const int LastTest = 265;
 
 @interface ViewController ()
 @property (nonatomic) NSOperationQueue *queue;
@@ -123,6 +123,9 @@ static const int LastTest = 215;
         if ([info[@"behavior"] isEqualToString:@"OK"]) {
             NSLog(@"VERIFED %@", test.identifier);
             test.status = TestCaseStatusPassed;
+        } else if ([info[@"behavior"] isEqualToString:@"INFORMATIONAL"]) {
+            NSLog(@"NON-STRICT: %@ - %@", test.identifier, test.summary);
+            test.status = TestCaseStatusInformational;
         } else {
             NSLog(@"FAILED: %@ - %@", test.identifier, test.summary);
             test.status = TestCaseStatusFailed;

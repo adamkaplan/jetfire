@@ -70,21 +70,22 @@ static void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type,
 }
 
 - (void)disconnect {
-    JFRLog(self, @"Disconnecting write stream");
+    JFRLog(JFRWarn, @"Disconnecting write stream");
 
     [self writeCloseCode:JFRCloseCodeNormal reason:nil];
 }
 
 
 - (void)failWithCloseCode:(NSUInteger)code reason:(NSString *)reason {
-    JFRLog(self, @"Failing write stream");
+    JFRLog(JFRError, @"Failing write stream");
     
     [self writeCloseCode:code reason:reason failConnection:YES];
 }
 
 - (void)writeString:(NSString *)string {
     NSAssert(_status == JFRSocketControllerStatusOpen, @"Writing to unopened stream");
-    //JFRLog(self, @"Writing string of length %lu: %@", string.length, string);
+    JFRLog(JFRDebug, @"Writing string of length %lu", string.length);
+    JFRLog(JFRBinary, @"%@", string);
     
     __weak typeof(self) weakSelf = self;
     dispatch_async(self.ioQueue, ^{
@@ -106,8 +107,9 @@ static void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type,
 }
 
 - (void)writeData:(NSData *)data opcode:(JFROpCode)opcode {
-    NSAssert(_status == JFRSocketControllerStatusOpen, @"Writing to unopened stream");
-    JFRLog(self, @"Writing data (opcode %lu) of length %lu", opcode, data.length);
+    NSAssert(_status == JFRSocketControllerStatusOpen || _status == JFRSocketControllerStatusClosingHandshakeInitiated,
+             @"Writing to unopened stream");
+    JFRLog(JFRDebug, @"Writing data (opcode %lu) of length %lu", opcode, data.length);
     
     __weak typeof(self) weakSelf = self;
     dispatch_async(self.ioQueue, ^{
@@ -121,11 +123,11 @@ static void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type,
 
 - (void)writeCloseCode:(NSUInteger)code reason:(NSString *)reason failConnection:(BOOL)failConnection {
     if (_status != JFRSocketControllerStatusOpen) {
-        NSLog(@"Attempt to write to unopened stream");
+        JFRLog(JFRWarn, @"Attempt to write to unopened stream");
         return;
     }
     //NSAssert(_status == JFRSocketControllerStatusOpen || _status == JFRSocketControllerStatusClosing, @"Writing to unopened stream");
-    JFRLog(self, @"Writing close packet with code %lu, %@", code, reason);
+    JFRLog(JFRInfo, @"Writing close packet with code %lu, %@", code, reason);
 
     _status = JFRSocketControllerStatusClosingHandshakeInitiated;
     
@@ -166,7 +168,7 @@ static void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type,
 
 - (void)writeRawData:(NSData *)data {
     NSAssert(_status == JFRSocketControllerStatusOpen, @"Writing to unopened stream");
-    JFRLog(self, @"Writing raw data of length %lu", data.length);
+    JFRLog(JFRDebug, @"Writing raw data of length %lu", data.length);
     
     dispatch_async(self.ioQueue, ^{
         [self writeBuffer:(const UInt8 *)[data bytes] length:[data length]];
@@ -180,8 +182,7 @@ static void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type,
  * @returns The total bytes written, which may be more than `length` due to the web socket protocol frame.
  *      If this value is negative, an error occurred.
  */
--(CFIndex)writeFrameBuffer:(const UInt8 *)buffer length:(const CFIndex)length opcode:(const JFROpCode)code
-{
+-(CFIndex)writeFrameBuffer:(const UInt8 *)buffer length:(const CFIndex)length opcode:(const JFROpCode)code {
     NSAssert(dispatch_get_specific(kJFRSocketReadControllerQueueIdentifierKey) == kJFRSocketReadControllerQueueIdentifierIO,
              @"%s Wrong queue", __PRETTY_FUNCTION__);
     
@@ -244,16 +245,16 @@ static void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type,
         CFIndex written = CFWriteStreamWrite(self.outputStream, buffer + total, length - total);
         if (written < 0) {
             NSError *error = CFBridgingRelease(CFWriteStreamCopyError(self.outputStream));
-            JFRLog(self, @"write error %ld %@", CFWriteStreamGetStatus(self.outputStream), error);
+            JFRLog(JFRError, @"write error %ld %@", CFWriteStreamGetStatus(self.outputStream), error);
             [self p_destroyOutputStream];
             [self.delegate websocketController:self shouldCloseWithError:error];
             return -1;
         
         } else if (written == 0) {
-            JFRLog(self, @"write stream full. Dropped %lu bytes on the floor", written);
+            JFRLog(JFRWarn, @"write stream full. Dropped %lu bytes on the floor", written);
             
         } else {
-            JFRLog(self, @"wrote %lu bytes", written);
+            JFRLog(JFRInfo, @"Wrote %lu bytes", written);
             total += written;
         }
     }
@@ -267,14 +268,14 @@ static void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type,
     switch (eventCode) {
             
         case NSStreamEventOpenCompleted:
-            JFRLog(self, @"%p write stream open", stream);
+            JFRLog(JFRInfo, @"%p write stream open", stream);
             
             _status = JFRSocketControllerStatusOpening;
             break;
             
         case NSStreamEventHasSpaceAvailable:
         {
-            JFRLog(self, @"%p write stream has space", stream);
+            JFRLog(JFRInfo, @"%p write stream has space", stream);
             
             if (_status == JFRSocketControllerStatusOpening) {
                 _status = JFRSocketControllerStatusOpen;
@@ -285,14 +286,14 @@ static void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type,
         case NSStreamEventErrorOccurred:
         {
             NSError *error = (__bridge NSError *)CFWriteStreamCopyError(self.outputStream);
-            JFRLog(self, @"%p write stream error: %@", stream, error);
+            JFRLog(JFRError, @"%p write stream error: %@", stream, error);
             
             [self p_destroyOutputStream];
             [self.delegate websocketController:self shouldCloseWithError:error];
             break;
         }
         default:
-            JFRLog(self, @"%p write stream – unknown event", stream);
+            JFRLog(JFRError, @"%p write stream – unknown event", stream);
             break;
     }
 }
@@ -348,8 +349,6 @@ static void writeStreamCallback(CFWriteStreamRef stream, CFStreamEventType type,
         CFRelease(stream);
         _outputStream = NULL;
     }
-    
-    //    _ioQueue = nil;
 }
 
 @end

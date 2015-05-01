@@ -12,15 +12,10 @@
 
 #import "NSData+JFRBinaryInspection.h"
 
-// Dispatch Queue Property Keys
-//static const void *const kJFRSocketReadControllerQueueFragmentKey   = "JFRSocketReadControllerQueueFragmentBufferKey";
-static const void *const kJFRSocketReadControllerQueueReponseKey    = "JFRSocketReadControllerQueueCurrentReponseKey";
-//static const void *const kJFRSocketReadControllerQueueHeaderByteKey = "JFRSocketReadControllerQueueHeaderByteKey";
-
 //
 static const void *const kJFRSocketReadControllerQueueIdentifierParsing = "JFRSocketReadControllerQueueIdentifierParsing";
 // WebSocket HTTP Header Keys
-static const CFStringRef kJFRHttpHeaderAcceptNameKey                = CFSTR("Sec-WebSocket-Accept");
+static const CFStringRef kJFRHttpHeaderAcceptNameKey = CFSTR("Sec-WebSocket-Accept");
 
 static const size_t kJFRReadBufferMax = 4096;
 
@@ -132,13 +127,13 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
         return;
     }
     
-    JFRLog(self, @"Initiating hard close after %0.2fs", interval);
+    JFRLog(JFRInfo, @"Initiating hard close after %0.2fs", interval);
 
     _status = JFRSocketControllerStatusClosingHandshakeInitiated;
     
     __weak typeof(self) weakSelf = self;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(interval * NSEC_PER_SEC)), self.ioQueue, ^{
-        JFRLog(weakSelf, @"Hard close timeout expired after %0.2fs", interval);
+        JFRLog(JFRInfo, @"Hard close timeout expired after %0.2fs", interval);
         [weakSelf disconnect];
     });
 }
@@ -229,7 +224,7 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
 - (void)p_processAvailableBytes:(CFReadStreamRef)stream {
     NSAssert(dispatch_get_specific(kJFRSocketReadControllerQueueIdentifierKey) == kJFRSocketReadControllerQueueIdentifierIO, @"%s Wrong queue", __PRETTY_FUNCTION__);
     
-    JFRLog(self, @"Reading from stream");
+    JFRLog(JFRDebug, @"Reading from stream");
     
     UInt8 *buffer = NULL;
     CFIndex readBytes = 0;
@@ -239,18 +234,18 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
     readBytes = CFReadStreamRead(stream, buffer, kJFRReadBufferMax);
     
     if (readBytes < 0) {
-        JFRLog(self, @"Input stream read error (code %ld) %@",
+        JFRLog(JFRError, @"Input stream read error (code %ld) %@",
                CFReadStreamGetStatus(stream), CFBridgingRelease(CFReadStreamCopyError(stream)));
         free(buffer);
         // any already buffered data in `collector` still must be processed.
         // to be verified: the error here is reported to the delegate and handled there.
         
     } else if (readBytes == 0) {
-        JFRLog(self, @"No data returned from input stream. Connection is intact.");
+        JFRLog(JFRWarn, @"No data returned from input stream. Connection is intact.");
         free(buffer);
         
     } else {
-        JFRLog(self, @"Read %ld bytes", readBytes);
+        JFRLog(JFRDebug, @"Read %ld bytes", readBytes);
         collector = dispatch_data_create(buffer, readBytes, self.parsingQueue, DISPATCH_DATA_DESTRUCTOR_FREE);
     }
     
@@ -276,7 +271,7 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
     
     if (self.status >= JFRSocketControllerStatusClosingHandshakeInitiated) {
         // Once close begins, ignore futher data per spec
-        JFRLog(self, @"Dropping frames because close handshake has begun");
+        JFRLog(JFRWarn, @"Dropping frames because close handshake has begun");
         return;
     }
 
@@ -301,7 +296,7 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
                 _frameBytesRemaining = 0;
             }
 
-            JFRLog(self, @"Fragment size is %ld, new data size is %ld", dispatch_data_get_size(_frameFragment), length);
+            JFRLog(JFRDebug, @"Fragment size is %ld, new data size is %ld", dispatch_data_get_size(_frameFragment), length);
             data = dispatch_data_create_concat(_frameFragment, subrange);
             _frameFragment = NULL;
         }
@@ -317,7 +312,7 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
             
         } else if (bytesUsed < 0) { // something terrible happened
             //NSAssert(false, @"Fatal error while parsing data region (-1)");
-            JFRLog(self, @"Fatal error while parsing data region (-1)");
+            JFRLog(JFRError, @"Fatal error while parsing data region (-1)");
             [self p_destroyInputStream];
             NSError *error = [[self class] errorWithDetail:@"Unknown Read Error" code:JFRCloseCodeProtocolError];
             [self.delegate websocketController:self shouldCloseWithError:error];
@@ -325,7 +320,7 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
             
         } else if (bytesUsed > size) { // parser ate more bytes than it was given
             NSAssert(false, @"Fatal error while parsing data region");
-            JFRLog(self, @"Fatal error while parsing data region");
+            JFRLog(JFRError, @"Fatal error while parsing data region");
             return NO; // error
             
         } else if (bytesUsed < size) { // there was a fragment, save it
@@ -373,13 +368,14 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
         }
         buffer += nextIndex;
         remainingLength -= nextIndex;
-        JFRLog(self, @"Read stream had %lu bytes remaining after HTTP handshake)", remainingLength);
+        JFRLog(JFRDebug, @"Read stream had %lu bytes remaining after HTTP handshake)", remainingLength);
     }
     
     // Process any websocket frames received
     size_t regionOffset = 0;
     while (remainingLength > 0) { // cannot process a frame with < 2 bytes (hard minimum for header)
-        JFRLog(self, @"About to process frame:\n%@", [[NSData dataWithBytesNoCopy:(void *)buffer length:remainingLength freeWhenDone:NO] binaryString]);
+        JFRLog(JFRBinary, @"About to process frame:\n%@",
+               [[NSData dataWithBytesNoCopy:(void *)buffer length:remainingLength freeWhenDone:NO] binaryString]);
         
         ssize_t usedLength = [self p_processWebSocketFrameRegion:region offset:regionOffset buffer:buffer length:remainingLength];
         if (usedLength < 0) {
@@ -428,30 +424,9 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
     
     if (self.status >= JFRSocketControllerStatusClosingHandshakeInitiated) {
         // Once close begins, ignore futher data per spec
-        JFRLog(self, @"Dropping frames because close handshake has begun");
+        JFRLog(JFRWarn, @"Dropping frames because close handshake has begun");
         return -1;
     }
-    
-    // Check for edge case where only single header byte was read from the network. In this case, there
-    // was not enough information to completely process the frame, so header processing must continue now.
-    //BOOL hadContinueByte = NO;
-    //uint8_t firstByte = 0;
-    //uint8_t *firstBytePtr = dispatch_get_specific(kJFRSocketReadControllerQueueHeaderByteKey);
-//    if (_hasHeaderByte) {
-//        firstByte = _headerByte;
-//        _headerByte = 0;
-//        hadContinueByte = YES;
-//        dispatch_queue_set_specific(self.parsingQueue, kJFRSocketReadControllerQueueHeaderByteKey, NULL, NULL);
-//        
-//    } else if (length == 1) {
-//        firstBytePtr = malloc(sizeof(uint8_t));
-//        *firstBytePtr = buffer[0];
-//        dispatch_queue_set_specific(self.parsingQueue, kJFRSocketReadControllerQueueHeaderByteKey, firstBytePtr, free);
-//        return length;
-//        
-//    } else {
-//        firstByte = buffer[0];
-//    }
     
     /* RFC-6455 Framing Specification
      0                   1                   2                   3
@@ -495,7 +470,6 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
         // Validate unicode fragment
         if (response.opcode == JFROpCodeTextFrame) {
             ssize_t result = [self p_validateUnicode:additionalData continuationBytes:response.unicodeBytesToIgnore];
-            NSLog(@"Result is %ld", result);
             if (result < 0) {
                 _status = JFRSocketControllerStatusClosingHandshakeComplete;
                 
@@ -510,7 +484,7 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
         
         response.payloadData = dispatch_data_create_concat(response.payloadData, additionalData);
         
-        JFRLog(self, @"Continuing existing response. Payload is now %lu. Expecting %lu more bytes.",
+        JFRLog(JFRDebug, @"Continuing existing response. Payload is now %lu. Expecting %lu more bytes.",
                dispatch_data_get_size(response.payloadData), response.bytesLeftInMessage);
         NSAssert(response.bytesLeftInMessage >= 0, @"Bytes left in message cannot be negative (%ld)", response.bytesLeftInMessage);
         
@@ -527,14 +501,6 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
         return dispatch_data_get_size(additionalData);
     }
     
-    
-    // HANDLE HEADER BYTE CASE 6 – Single byte of a new frame, not enough to process. Save it and exit.
-//    if (length == 1 && response.bytesLeftInMessage == 0) {
-//        _headerByte = buffer[0];
-//        _hasHeaderByte = YES;
-//        return length;
-//    }
-    
     // Fin - Indicates that this is the final fragment in a message. The first fragment MAY also be the final fragment.
     BOOL isFin = NO;
     // rsv1,2,3 - MUST be 0 unless an extension is negotiated that defines meanings for non-zero values.
@@ -544,72 +510,6 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
 
     BOOL isControlFrame = NO;
     size_t offset = 0;
-    
-//    // HANDLE HEADER BYTE CASE 3 – Use unprocessed header byte as first frame byte.
-//    if (_hasHeaderByte) {
-//        isFin = _headerByte & JFRFinMask;
-//        rsvBits = _headerByte & JFRRSVMask;
-//        receivedOpcode = _headerByte & JFROpCodeMask;
-//        
-//        isControlFrame = JFROpCodeIsControl(receivedOpcode);
-//        _headerByte = 0;
-//        _hasHeaderByte = NO;
-//    }
-//    }
-    
-    //    // Check if a multi-frame response is in progress.
-    //    if (!isControlFrame && response.bytesLeftInMessage > 0) {
-    //        dispatch_data_t additionalData;
-    //        if (response.bytesLeftInMessage >= length) {
-    //            additionalData = dispatch_data_create_subrange(region, regionOffset, length);
-    //            response.bytesLeftInMessage -= length;
-    //        }
-    //        else {
-    //            additionalData = dispatch_data_create_subrange(region, regionOffset, response.bytesLeftInMessage);
-    //            response.bytesLeftInMessage = 0;
-    //        }
-    //
-    //        response.payloadData = dispatch_data_create_concat(response.payloadData, additionalData);
-    //
-    //        JFRLog(self, @"Continuing existing response. Payload was %lu, now %lu. Expecting %lu more bytes.",
-    //               previousSize, dispatch_data_get_size(response.payloadData), response.bytesLeftInMessage);
-    //        NSAssert(response.bytesLeftInMessage >= 0, @"Bytes left in message cannot be negative (%ld)", response.bytesLeftInMessage);
-    //
-    //        if (response.bytesLeftInMessage <= 0 && response.isFinished) {
-    //            const void *frameBuffer = NULL;
-    //            size_t frameSize = 0;
-    //            dispatch_data_t tempData = dispatch_data_create_map(response.payloadData, &frameBuffer, &frameSize);
-    //            [self p_processWebSocketMessage:(uint8_t *)frameBuffer length:frameSize opcode:response.opcode];
-    //            tempData = nil;
-    //
-    //            [_messageStack removeLastObject];
-    //        }
-    //
-    //        return dispatch_data_get_size(additionalData);
-    //    }
-    
-    //
-    // Process the first byte!
-    //
-    //
-    //    if (response && !response.isHeaderComplete) {
-    //        // if there was a response, it is guaranteed to contain the first byte header values. this
-    //        // can happen if we received the first and second byte of the frame in different reads.
-    //        isFin = response.isFinished;
-    //        receivedOpcode = response.opcode;
-    //        isControlFrame = JFROpCodeIsControl(receivedOpcode);
-    //
-    //    } else {
-    //        hasFirstHeaderByte = YES;
-    //
-    //        if (!hadContinueByte) {
-    //            ++offset; // the 0 is hard coded below for convienance. increment for second byte
-    //        }
-    //
-    //        isFin = JFRFinMask & firstByte;
-    //        receivedOpcode = JFROpCodeMask & firstByte;
-    //        isControlFrame = JFROpCodeIsControl(receivedOpcode);
-
     
     // HANDLE CASE 8 - New start or continuation frame with at least 2 header bytes.
     // HANDLE CASE 1 - Data is either a new continuation frame for response, new control frame.
@@ -669,7 +569,7 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
         }
         // A control frame which occurs in-between continuation frames must be processed immediately.
         else if (isControlFrame && response) {
-            JFRLog(self, @"Received control frame between continuation frames");
+            JFRLog(JFRInfo, @"Received control frame between continuation frames");
             response = nil;
         }
         
@@ -745,20 +645,25 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
                  code = JFRCloseCodeProtocolError;
              }
              codeOffset += sizeof(uint16_t);
-             
+            
+            // TODO: handle close code TCP fragmentation.
+            
              // Determine appropriate server close reason, if provided
              NSInteger reasonLength = payloadLen - sizeof(uint16_t); // account for the 2-byte reason code
              if(reasonLength > 0) {
                  closeReason = [[NSString alloc] initWithBytes:(void *)(buffer + codeOffset)
                                                         length:reasonLength
                                                       encoding:NSUTF8StringEncoding];
+                 if (!closeReason) {
+                     code = JFRCloseCodeEncoding; // close reason was invalid string
+                 }
              }
          }
         
         if (response) { [_messageStack removeLastObject]; }
         
         // Server initiated the closing handshake or has accepted ours. Either way, we're done.
-        _status = JFRSocketControllerStatusClosingHandshakeComplete;
+        //_status = JFRSocketControllerStatusClosingHandshakeComplete;
         NSError *error = [[self class] errorWithDetail:closeReason code:code];
         [self.delegate websocketController:self shouldCloseWithError:error];
         return payloadLen + sizeof(uint16_t); // add back in the original 2-byte web socket frame header
@@ -822,7 +727,6 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
         
         if (response.opcode == JFROpCodeTextFrame) {
             ssize_t result = [self p_validateUnicode:additionalPayloadData continuationBytes:response.unicodeBytesToIgnore];
-            NSLog(@"Result is %ld", result);
             if (result < 0) {
                 _status = JFRSocketControllerStatusClosingHandshakeComplete;
                 
@@ -834,74 +738,6 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
                 response.unicodeBytesToIgnore = result;
             }
         }
-        
-//        ///// HACK
-//        // Every text frame is expected to be valid unicode. When it is not, the specification requires
-//        // that the connection be hard failed (closed), immediately.
-//        if (response.bytesLeftInMessage == 0 && response.opcode == JFROpCodeTextFrame) {
-//            // Strict normative checking requires validating unicode as it arrives. It is expected that
-//            // if a unicode byte spans WS frames, the bytes up to the partial character - but not the
-//            // partial character - will be validated. This is a big pain.
-//            ssize_t ignoreBytes = 0;
-//
-//            const size_t lastByteOffset = offset + additionalPayloadLength - 1;
-//            if (buffer[lastByteOffset] < 0x7F) {
-//                NSLog(@"Last byte was complete");
-//            } else {
-//                size_t currentByteOffset = lastByteOffset;
-//                while (currentByteOffset > offset) {
-//                    uint8_t lastByte = buffer[currentByteOffset];
-//                    BOOL startByte = NO;
-//                    uint8_t remainingSequenceBytes = 0;
-//                    
-//                    if (lastByte >= 0xC2 && lastByte <= 0xDF) {
-//                        NSLog(@"TWO BYTE SEQ %lu", lastByteOffset - currentByteOffset);
-//                        startByte = YES;
-//                        remainingSequenceBytes = 1;
-//                        
-//                    } else if (lastByte >= 0xE0 && lastByte <= 0xEF) {
-//                        NSLog(@"THREE BYTE SEQ %lu", lastByteOffset - currentByteOffset);
-//                        startByte = YES;
-//                        remainingSequenceBytes = 2;
-//                        
-//                    } else if (lastByte >= 0xF0 && lastByte <= 0xFF) {
-//                        NSLog(@"FOUR BYTE SEQ %lu", lastByteOffset - currentByteOffset);
-//                        startByte = YES;
-//                        remainingSequenceBytes = 3;
-//                    }
-//                    
-//                    if (startByte) {
-//                        if (lastByteOffset - currentByteOffset < remainingSequenceBytes) {
-//                            ignoreBytes = lastByteOffset - currentByteOffset + 1;
-//                        }
-//                        break;
-//                    }
-//                    currentByteOffset--;
-//                }
-//            }
-//            
-//            JFRLog(self, @"Must ignore the last %u bytes", ignoreBytes);
-//            
-////            uint8_t lastByte = *(buffer + offset + additionalPayloadLength - 1);
-//            
-//            const void *xFrameBuffer = NULL;
-//            size_t xFrameSize = 0;
-//            dispatch_data_t xTempData = dispatch_data_create_map(response.payloadData, &xFrameBuffer, &xFrameSize);
-//            
-//            NSString *str = [[NSString alloc] initWithBytesNoCopy:(uint8_t*)xFrameBuffer length:xFrameSize - ignoreBytes encoding:NSUTF8StringEncoding freeWhenDone:NO];
-//            if (!str) {
-//                [_messageStack removeAllObjects];
-//                _status = JFRSocketControllerStatusClosingHandshakeComplete;
-//                NSError *error = [[self class] errorWithDetail:@"-=-=-=-=-=-=-=-=-=-=-=-=-=-=- Invalid unicode in string encoding" code:JFRCloseCodeEncoding];
-//                //[self.delegate websocketController:self shouldCloseWithError:error];
-//                //[self.delegate websocketControllerDidDisconnect:self error:error];
-//                [self.delegate websocketController:self shouldFailWithError:error];
-//                return -1;
-//            }
-//            
-//            xTempData = nil;
-//        }
-        /////HACK
     
         // Second, if the multi-frame fragmented message is finished and there is no missing data
         if (response.bytesLeftInMessage == 0 && isFin) {
@@ -925,7 +761,7 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
     }
 }
 
-/** Quickly validate unicode contained in a dispatch data region.
+/** Quick unicode streaming validator for dispatch_data.
  * @param data the data region to validate
  * @param continuationBytes number of continuation bytes to expect at the start of the data region
  * @returns a negative number if the region does not contain valid unicode. A positive number between
@@ -991,67 +827,6 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
     return bytesToIgnore;
 }
 
-//- (ssize_t)p_processWebSocketControlFrameRegion:(dispatch_data_t)region offset:(const size_t)regionOffset
-//                                         buffer:(const uint8_t *)buffer length:(const size_t)length {
-//
-//    BOOL isFin = JFRFinMask & buffer[0];
-//    JFROpCode receivedOpcode = JFROpCodeMask & buffer[0];
-//
-//    if (!isFin) {
-//        dispatch_queue_set_specific(self.parsingQueue, kJFRSocketReadControllerQueueReponseKey, NULL, NULL);
-//        
-//        NSError *error = [[self class] errorWithDetail:@"Control frame must not be fragmented" code:JFRCloseCodeProtocolError];
-//        [self.delegate websocketController:self shouldCloseWithError:error];
-//        return -1;
-//    }
-//    
-//    const uint8_t payloadLen = JFRPayloadLenMask & buffer[offset];
-//    
-//    // Handle error case - All control frames MUST have a payload length of 125 bytes
-//    if (payloadLen > 125) {
-//        NSString *errorReason = @"All control frames MUST have a payload length of 125 bytes or less.";
-//        
-//        dispatch_queue_set_specific(self.parsingQueue, kJFRSocketReadControllerQueueReponseKey, NULL, NULL);
-//        
-//        NSError *error = [[self class] errorWithDetail:errorReason code:JFRCloseCodeProtocolError];
-//        [self.delegate websocketController:self shouldCloseWithError:error];
-//        return -1;
-//    }
-//    
-//    // Handle Opcode - Server disconnected
-//    if(receivedOpcode == JFROpCodeConnectionClose) {
-//        NSInteger codeOffset = sizeof(uint16_t); // skip the original 2-byte web socket header
-//        NSString *closeReason;
-//        
-//        // Determine appropriate server close code
-//        uint16_t code = JFRCloseCodeNoStatusReceived; // optional status code not received
-//        
-//        if(payloadLen > 1) {
-//             code = CFSwapInt16BigToHost(*(uint16_t *)(buffer + codeOffset));
-//             if(code < 1000 || (code > 1003 && code < 1007) || (code > 1011 && code < 3000)) {
-//                 code = JFRCloseCodeProtocolError;
-//             }
-//             codeOffset += sizeof(uint16_t);
-//             
-//             // Determine appropriate server close reason, if provided
-//             NSInteger reasonLength = payloadLen - sizeof(uint16_t); // account for the 2-byte reason code
-//             if(reasonLength > 0) {
-//                 closeReason = [[NSString alloc] initWithBytes:(void *)(buffer + codeOffset)
-//                                                        length:reasonLength
-//                                                      encoding:NSUTF8StringEncoding];
-//             }
-//         }
-//        
-//        dispatch_queue_set_specific(self.parsingQueue, kJFRSocketReadControllerQueueReponseKey, NULL, NULL);
-//        
-//        // Server initiated the closing handshake or has accepted ours. Either way, we're done.
-//        _status = JFRSocketControllerStatusClosingHandshakeComplete;
-//        NSError *error = [[self class] errorWithDetail:closeReason code:code];
-//        [self.delegate websocketController:self shouldCloseWithError:error];
-//        return payloadLen + sizeof(uint16_t); // add back in the original 2-byte web socket frame header
-//    }
-//}
-
 - (void)p_processWebSocketMessage:(const uint8_t *)buffer length:(size_t)length opcode:(uint8_t)opcode {
     NSAssert(dispatch_get_specific(kJFRSocketReadControllerQueueIdentifierKey) == kJFRSocketReadControllerQueueIdentifierParsing,
              @"%s Wrong queue", __PRETTY_FUNCTION__);
@@ -1087,7 +862,7 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
         }
         case JFROpCodePong:
         {
-            JFRLog(self, @"Got pong frame: %@",
+            JFRLog(JFRDebug, @"Got pong frame: %@",
                    [[NSString alloc] initWithBytes:buffer length:length encoding:NSUTF8StringEncoding]);
         }
     }
@@ -1126,18 +901,18 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
     }
     
     if (packetLength == 0) {
-        JFRLog(self, @"Unable to find end of HTTP packet.");
+        JFRLog(JFRError, @"Unable to find end of HTTP packet.");
         return -1;
     }
     
     // Split the data regions into the HTTP packet data and the remaining raw data.
     BOOL isValid = [self p_validateHttpHandshake:buffer length:packetLength];
     if (!isValid) {
-        JFRLog(self, @"HTTP upgrade packet failed verification");
+        JFRLog(JFRError, @"HTTP upgrade packet failed verification");
         return -1;
     }
     
-    JFRLog(self, @"HTTP upgrade packet verified");
+    JFRLog(JFRInfo, @"HTTP upgrade packet verified");
     [self.delegate websocketControllerDidConnect:self];
     return packetLength;
     
@@ -1148,7 +923,7 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
      dispatch_data_t t = dispatch_data_create_map(data, (const void **)&b, &l);
      NSData *dt = [NSData dataWithBytesNoCopy:b length:l freeWhenDone:NO];
      NSString *str = [[NSString alloc] initWithData:dt encoding:NSUTF8StringEncoding];
-     JFRLog(self, @"HTTP DATA:\n%@", str);
+     JFRLog(JFRBinary, @"HTTP DATA:\n%@", str);
      t = nil;
      }
      {
@@ -1156,7 +931,7 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
      size_t l = 0;
      dispatch_data_t t = dispatch_data_create_map(*remainingData, (const void **)&b, &l);
      NSData *dt = [NSData dataWithBytesNoCopy:b length:l freeWhenDone:NO];
-     JFRLog(self, @"REM DATA:\n%@", [dt binaryString]);
+     JFRLog(JFRBinary, @"REM DATA:\n%@", [dt binaryString]);
      if (t) t = nil; // arc release
      }*/
 }
@@ -1196,14 +971,14 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
             
         case kCFStreamEventOpenCompleted:
         {
-            JFRLog(self, @"%p read stream open", stream);
+            JFRLog(JFRInfo, @"%p read stream open", stream);
             
             [self.delegate websocketControllerDidConnect:self];
             break;
         }   
         case kCFStreamEventHasBytesAvailable:
         {
-            JFRLog(self, @"%p read stream has bytes available", stream);
+            JFRLog(JFRInfo, @"%p read stream has bytes available", stream);
             
             [self p_processAvailableBytes:stream];
             break;
@@ -1211,7 +986,7 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
         case kCFStreamEventErrorOccurred:
         {
             NSError *error = CFBridgingRelease(CFReadStreamCopyError(self.inputStream));
-            JFRLog(self, @"%p read stream error: %@", stream, error);
+            JFRLog(JFRError, @"%p read stream error: %@", stream, error);
             
             [self p_destroyInputStream];
             [self.delegate websocketController:self shouldCloseWithError:error];
@@ -1219,7 +994,7 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
         }
         case kCFStreamEventEndEncountered:
         {
-            JFRLog(self, @"%p read stream end encountered", stream);
+            JFRLog(JFRError, @"%p read stream end encountered", stream);
             NSError *error = [[self class] errorWithDetail:@"Connection lost." code:JFRCloseCodeNormal];
 
             [self p_destroyInputStream];
@@ -1227,7 +1002,7 @@ static void readStreamCallback(CFReadStreamRef stream, CFStreamEventType type, v
             break;
         }
         default: {
-            JFRLog(self, @"%p read stream – unknown event", stream);
+            JFRLog(JFRWarn, @"%p read stream – unknown event", stream);
             break;
         }
     }
